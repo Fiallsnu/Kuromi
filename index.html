@@ -58,10 +58,18 @@
                 object-fit: contain; /* 保持比例，完整显示图片 */
                 padding: 4px;
             }
+            
+            /* 添加触摸优化 */
+            .touch-optimized {
+                -webkit-tap-highlight-color: transparent;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
+            }
         }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 bg-pattern overflow-hidden">
+<body class="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 bg-pattern overflow-hidden touch-optimized">
     <div id="app" class="relative w-screen h-screen">
         <div id="background-hearts" class="absolute top-0 left-0 w-full h-full"></div>
     </div>
@@ -74,14 +82,18 @@
 
             // 手机屏幕（小于768px）
             if (screenWidth < 768) {
-                popupSize = Math.min(screenWidth * 0.3, 140); // 弹窗大小为屏幕宽度的30%（最大140px）
-                desiredPoints = 60; // 减少弹窗数量，避免拥挤
-                scaleFactor = 65; // 心形缩放因子（值越大，心形越小）
-                popupInterval = 150; // 增加间隔，避免加载拥挤
+                // 更小的弹窗大小，使用屏幕宽度的25%
+                popupSize = Math.min(screenWidth * 0.18, 120);
+                // 进一步减少弹窗数量，避免拥挤
+                desiredPoints = Math.max(70, Math.floor(screenWidth / 12));
+                // 调整心形缩放因子，使心形更小
+                scaleFactor = 35;
+                // 增加间隔，避免加载拥挤
+                popupInterval = 200;
             } 
             // 平板/桌面（大于等于768px）
             else {
-                popupSize = 160; // 固定尺寸
+                popupSize = 150; // 固定尺寸
                 desiredPoints = 100;
                 scaleFactor = 50;
                 popupInterval = 100;
@@ -93,9 +105,9 @@
                 popupHeight: popupSize, // 保持正方形
                 popupDuration: 30000,
                 popupInterval: popupInterval,
-                bgHeartsCount: screenWidth < 768 ? 15 : 30, // 手机减少背景爱心
-                bgHeartMinSize: screenWidth < 768 ? 8 : 12,
-                bgHeartMaxSize: screenWidth < 768 ? 25 : 40,
+                bgHeartsCount: screenWidth < 768 ? 12 : 30, // 进一步减少手机背景爱心
+                bgHeartMinSize: screenWidth < 768 ? 6 : 12,
+                bgHeartMaxSize: screenWidth < 768 ? 20 : 40,
                 bgHeartMinDuration: 3000,
                 bgHeartMaxDuration: 8000,
                 scaleFactor: scaleFactor // 用于心形缩放的参数
@@ -108,7 +120,6 @@
             'https://github.com/Fiallsnu/Kuromi/blob/main/photo/库洛米1.jpg?raw=true',
             'https://github.com/Fiallsnu/Kuromi/blob/main/photo/库洛米2.jpg?raw=true',
             'https://github.com/Fiallsnu/Kuromi/blob/main/photo/库洛米3.jpg?raw=true',
-            'https://github.com/Fiallsnu/Kuromi/blob/main/photo/库洛米4.jpg?raw=true',
         ];
 
         // 背景爱心颜色
@@ -139,9 +150,11 @@
                 x = centerX + x * scale;
                 y = centerY + y * scale;
                 
-                // 确保弹窗不超出屏幕边缘
-                x = Math.max(windowW / 2, Math.min(x, screenW - windowW / 2));
-                y = Math.max(windowH / 2, Math.min(y, screenH - windowH / 2));
+                // 确保弹窗不超出屏幕边缘，增加边距
+                const marginX = windowW / 2;
+                const marginY = windowH / 2;
+                x = Math.max(marginX, Math.min(x, screenW - marginX));
+                y = Math.max(marginY, Math.min(y, screenH - marginY));
                 
                 points.push({ x: Math.floor(x), y: Math.floor(y) });
             }
@@ -163,7 +176,7 @@
             const app = document.getElementById('app');
             
             const popup = document.createElement('div');
-            popup.className = 'heart-popup absolute rounded-xl popup-shadow cursor-pointer flex items-center justify-center overflow-hidden';
+            popup.className = 'heart-popup absolute rounded-xl popup-shadow cursor-pointer flex items-center justify-center overflow-hidden touch-optimized';
             popup.style.width = `${width}px`;
             popup.style.height = `${height}px`;
             popup.style.left = `${x - width/2}px`;
@@ -198,6 +211,19 @@
             
             // 点击关闭
             popup.addEventListener('click', () => {
+                clearTimeout(autoCloseTimer);
+                closePopup(popup);
+            });
+            
+            // 添加触摸事件支持
+            popup.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                popup.style.transform = 'scale(0.95)';
+            });
+            
+            popup.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                popup.style.transform = '';
                 clearTimeout(autoCloseTimer);
                 closePopup(popup);
             });
@@ -305,6 +331,22 @@
             clearTimeout(window.resizeTimer);
             window.resizeTimer = setTimeout(init, 300);
         });
+        
+        // 防止页面缩放
+        document.addEventListener('touchstart', function(event) {
+            if (event.touches.length > 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
     </script>
 </body>
 </html>
