@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>库洛米</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        kuromi: {
+                            purple: '#9370db',
+                            pink: '#ff80b0',
+                            black: '#2d2d2d'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .popup-shadow {
+                box-shadow: 0 3px 15px rgba(0, 0, 0, 0.2);
+            }
+            .heart-popup {
+                transition: all 0.3s ease-out;
+                transform-origin: center;
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            .heart-popup.show {
+                opacity: 1;
+                transform: scale(1);
+            }
+            .bg-pattern {
+                background-image: radial-gradient(rgba(147, 112, 219, 0.1) 1px, transparent 1px);
+                background-size: 20px 20px;
+            }
+            .floating-heart {
+                position: absolute;
+                pointer-events: none;
+                opacity: 0;
+                transition: all 0.5s ease;
+                animation: float 3s infinite ease-in-out;
+            }
+            @keyframes float {
+                0%, 100% { transform: translateY(0) scale(1); }
+                50% { transform: translateY(-10px) scale(1.1); }
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 bg-pattern overflow-hidden">
+    <!-- 主容器 -->
+    <div id="app" class="relative w-screen h-screen">
+        <!-- 动态背景爱心容器 -->
+        <div id="background-hearts" class="absolute top-0 left-0 w-full h-full"></div>
+        
+        <!-- 库洛米弹窗会动态添加到这里 -->
+    </div>
+
+    <script>
+        // 配置参数
+        const config = {
+            desiredPoints: 100,       // 心形点数（适当减少，避免过于密集）
+            popupWidth: 160,          // 弹窗宽度
+            popupHeight: 160,         // 弹窗高度（改为正方形更适合显示图片）
+            popupDuration: 30000,     // 弹窗持续时间(毫秒)
+            popupInterval: 100,       // 弹窗间隔时间(毫秒)
+            bgHeartsCount: 30,        // 背景爱心总数
+            bgHeartMinSize: 12,       // 背景爱心最小尺寸
+            bgHeartMaxSize: 40,       // 背景爱心最大尺寸
+            bgHeartMinDuration: 3000, // 背景爱心最小存在时间
+            bgHeartMaxDuration: 8000  // 背景爱心最大存在时间
+        };
+
+        // 库洛米图片URL列表（使用公开可用的图片链接）
+        const kuromiImages = [
+       'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B3.jpg?raw=true'
+        'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B31.jpg?raw=true'
+            'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B32.jpg?raw=true'
+            'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B33.jpg?raw=true'
+            'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B34.jpg?raw=true'
+
+'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B35.jpg?raw=true'
+
+'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B36.jpg?raw=true'
+
+'https://github.com/Fiallsnu/Kuromi/blob/main/photo/%E5%BA%93%E6%B4%9B%E7%B1%B37.jpg?raw=true'  
+        ];
+
+        // 背景爱心颜色（改为紫色系，配合库洛米主题）
+        const heartColors = [
+            'text-purple-300', 'text-purple-400', 'text-purple-500',
+            'text-pink-300', 'text-pink-400', 'text-kuromi-purple'
+        ];
+
+        // 获取屏幕尺寸
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+
+        // 生成心形点坐标
+        function generateHeartPoints(numPoints, screenW, screenH, windowW, windowH) {
+            const points = [];
+            const centerX = screenW / 2;
+            const centerY = screenH / 2;
+            const scale = Math.min(screenW / 50, screenH / 50); // 调整缩放比例适应正方形弹窗
+            
+            for (let i = 0; i < numPoints; i++) {
+                const t = (i / numPoints) * 2 * Math.PI;
+                let x = 16 * Math.pow(Math.sin(t), 3);
+                let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+                y = -y;
+                
+                x = centerX + x * scale;
+                y = centerY + y * scale;
+                
+                // 确保点在屏幕范围内
+                x = Math.max(windowW / 2, Math.min(x, screenW - windowW / 2));
+                y = Math.max(windowH / 2, Math.min(y, screenH - windowH / 2));
+                
+                points.push({ x: Math.floor(x), y: Math.floor(y) });
+            }
+            
+            return points;
+        }
+
+        // 生成随机背景色（改为紫色系，配合库洛米主题）
+        function getRandomBgColor() {
+            const colors = [
+                '#fce4ec', '#f3e5f5', '#ede7f6', 
+                '#e8eaf6', '#e0f7fa', '#f1f8e9'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // 创建并显示库洛米弹窗
+        function showKuromiPopup(x, y, width, height) {
+            const app = document.getElementById('app');
+            
+            // 创建弹窗元素
+            const popup = document.createElement('div');
+            popup.className = 'heart-popup absolute rounded-xl popup-shadow cursor-pointer flex items-center justify-center overflow-hidden';
+            popup.style.width = `${width}px`;
+            popup.style.height = `${height}px`;
+            popup.style.left = `${x - width/2}px`;
+            popup.style.top = `${y - height/2}px`;
+            
+            // 设置背景色
+            const bgColor = getRandomBgColor();
+            popup.style.backgroundColor = bgColor;
+            
+            // 添加随机库洛米图片
+            const imgSrc = kuromiImages[Math.floor(Math.random() * kuromiImages.length)];
+            const imgElement = document.createElement('img');
+            imgElement.src = imgSrc;
+            imgElement.alt = '库洛米';
+            imgElement.className = 'max-w-full max-h-full object-contain p-2'; // 确保图片适应弹窗
+            popup.appendChild(imgElement);
+            
+            // 添加到页面
+            app.appendChild(popup);
+            
+            // 触发显示动画
+            setTimeout(() => {
+                popup.classList.add('show');
+            }, 10);
+            
+            // 自动关闭
+            const autoCloseTimer = setTimeout(() => {
+                closePopup(popup);
+            }, config.popupDuration);
+            
+            // 点击关闭
+            popup.addEventListener('click', () => {
+                clearTimeout(autoCloseTimer);
+                closePopup(popup);
+            });
+        }
+
+        // 关闭弹窗
+        function closePopup(popup) {
+            popup.classList.remove('show');
+            popup.classList.add('opacity-0', 'scale-90');
+            
+            setTimeout(() => {
+                if (popup.parentNode) {
+                    popup.parentNode.removeChild(popup);
+                }
+            }, 300);
+        }
+
+        // 创建背景爱心
+        function createBackgroundHeart() {
+            const container = document.getElementById('background-hearts');
+            const heart = document.createElement('i');
+            
+            // 随机属性
+            const size = Math.floor(Math.random() * (config.bgHeartMaxSize - config.bgHeartMinSize)) + config.bgHeartMinSize;
+            const color = heartColors[Math.floor(Math.random() * heartColors.length)];
+            const left = Math.floor(Math.random() * 100); // 百分比
+            const top = Math.floor(Math.random() * 100);  // 百分比
+            const opacity = 0.2 + Math.random() * 0.5;    // 0.2-0.7
+            const duration = Math.floor(Math.random() * (config.bgHeartMaxDuration - config.bgHeartMinDuration)) + config.bgHeartMinDuration;
+            const delay = Math.random() * 2;              // 0-2秒的动画延迟
+            
+            // 设置样式
+            heart.className = `fa fa-heart floating-heart ${color}`;
+            heart.style.fontSize = `${size}px`;
+            heart.style.left = `${left}%`;
+            heart.style.top = `${top}%`;
+            heart.style.opacity = '0';
+            heart.style.animationDelay = `${delay}s`;
+            
+            container.appendChild(heart);
+            
+            // 淡入效果
+            setTimeout(() => {
+                heart.style.opacity = opacity;
+            }, 100);
+            
+            // 随机时间后消失
+            setTimeout(() => {
+                heart.style.opacity = '0';
+                setTimeout(() => {
+                    if (heart.parentNode) {
+                        heart.parentNode.removeChild(heart);
+                    }
+                }, 500);
+            }, duration);
+        }
+
+        // 管理背景爱心
+        function manageBackgroundHearts() {
+            setInterval(() => {
+                const currentHearts = document.querySelectorAll('#background-hearts .floating-heart').length;
+                if (currentHearts < config.bgHeartsCount) {
+                    const toAdd = Math.min(3, config.bgHeartsCount - currentHearts);
+                    for (let i = 0; i < toAdd; i++) {
+                        setTimeout(createBackgroundHeart, Math.random() * 1000);
+                    }
+                }
+            }, 1000);
+        }
+
+        // 初始化
+        function init() {
+            // 初始化背景爱心
+            manageBackgroundHearts();
+            
+            // 初始化库洛米弹窗
+            const points = generateHeartPoints(
+                config.desiredPoints,
+                screenWidth,
+                screenHeight,
+                config.popupWidth,
+                config.popupHeight
+            );
+            
+            points.forEach((point, index) => {
+                setTimeout(() => {
+                    showKuromiPopup(point.x, point.y, config.popupWidth, config.popupHeight);
+                }, index * config.popupInterval);
+            });
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+
+        // 处理窗口大小变化
+        window.addEventListener('resize', () => {
+            const app = document.getElementById('app');
+            const popups = app.querySelectorAll('.heart-popup');
+            popups.forEach(popup => popup.remove());
+            
+            init();
+        });
+    </script>
+</body>
+</html>
